@@ -1,0 +1,8 @@
+[Oo]bj/
+[Bb]in/
+appsettings.json
+appsettings.*.json
+finance.db
+*.sqlite
+*.db
+.env
