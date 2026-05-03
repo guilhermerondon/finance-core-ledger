@@ -64,7 +64,7 @@ builder.Services.AddIdentity<IdentityUser, IdentityRole>()
 
 // Configuração da Autenticação JWT
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-var secretKey = jwtSettings["SecretKey"];
+var secretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY") ?? jwtSettings["SecretKey"] ?? "ChaveDeDesenvolvimentoSuperSecretaPadraoParaEvitarCrash123!";
 
 builder.Services.AddAuthentication(options =>
 {
@@ -79,9 +79,9 @@ builder.Services.AddAuthentication(options =>
         ValidateAudience = true,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
-        ValidIssuer = jwtSettings["Issuer"],
-        ValidAudience = jwtSettings["Audience"],
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey!))
+        ValidIssuer = jwtSettings["Issuer"] ?? "FinanceAPI",
+        ValidAudience = jwtSettings["Audience"] ?? "FinanceSPA",
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
     };
 });
 
