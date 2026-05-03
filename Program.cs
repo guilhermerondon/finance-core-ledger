@@ -30,9 +30,25 @@ builder.Services.AddCors(options =>
 builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
 builder.Services.AddScoped<TokenService>();
 
-// Configura o Entity Framework Core com SQLite
-builder.Services.AddDbContext<FinanceDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection")));
+// Configura o Entity Framework Core (PostgreSQL na Nuvem ou SQLite Local)
+var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+
+if (!string.IsNullOrEmpty(databaseUrl))
+{
+    // Parse URI do Railway para Connection String
+    var uri = new Uri(databaseUrl);
+    var userInfo = uri.UserInfo.Split(':');
+    var connectionString = $"Host={uri.Host};Port={(uri.Port > 0 ? uri.Port : 5432)};Database={uri.LocalPath.TrimStart('/')};Username={userInfo[0]};Password={userInfo[1]};SslMode=Prefer;TrustServerCertificate=true;";
+
+    builder.Services.AddDbContext<FinanceDbContext>(options =>
+        options.UseNpgsql(connectionString));
+}
+else
+{
+    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? "";
+    builder.Services.AddDbContext<FinanceDbContext>(options =>
+        options.UseSqlite(connectionString));
+}
 
 // Configuração do Identity
 builder.Services.AddIdentity<IdentityUser, IdentityRole>()
