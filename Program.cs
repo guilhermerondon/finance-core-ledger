@@ -18,9 +18,16 @@ builder.Services.AddControllers();
 // Configuração de CORS
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AngularApp", policy =>
+    options.AddPolicy("VercelPolicy", policy =>
     {
-        policy.WithOrigins("http://localhost:4200", "http://localhost:4000")
+        var frontendUrl = builder.Configuration["FRONTEND_URL"];
+        var origins = new List<string> { "http://localhost:4200", "http://localhost:4000" };
+        if (!string.IsNullOrEmpty(frontendUrl))
+        {
+            origins.Add(frontendUrl);
+        }
+        
+        policy.WithOrigins(origins.ToArray())
               .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
               .WithHeaders("Content-Type", "Authorization");
     });
@@ -124,7 +131,7 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 // Importante: O CORS deve ser ativado ANTES da autenticação e autorização
-app.UseCors("AngularApp");
+app.UseCors("VercelPolicy");
 
 // Importante: A ordem de UseAuthentication e UseAuthorization importa.
 app.UseAuthentication();
