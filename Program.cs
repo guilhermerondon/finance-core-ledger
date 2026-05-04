@@ -12,24 +12,23 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// --- 1. CONFIGURAÇÃO DE LOGS (Para debugar o Erro 500 no Railway) ---
+// --- 1. LOGS ---
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 
-// --- 2. SERVIÇOS E CONTROLLERS ---
+// --- 2. CONTROLLERS ---
 builder.Services.AddControllers();
 
-// --- 3. CONFIGURAÇÃO DE CORS (Blindada contra erros de Origin) ---
+// --- 3. CORS (Sincronizado com Vercel) ---
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("VercelPolicy", policy =>
     {
         var frontendUrlEnv = Environment.GetEnvironmentVariable("URL_FRONTEND");
-        
         var origins = new List<string> 
         { 
             "http://localhost:4200", 
-            "https://guilhermerondon-interface.vercel.app" // URL Oficial Fixa
+            "https://guilhermerondon-interface.vercel.app" 
         };
         
         if (!string.IsNullOrEmpty(frontendUrlEnv))
@@ -48,11 +47,10 @@ builder.Services.AddCors(options =>
 builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
 builder.Services.AddScoped<TokenService>();
 
-// --- 5. BANCO DE DADOS POSTGRESQL (Railway) ---
+// --- 5. BANCO DE DADOS (PostgreSQL Railway) ---
 var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
 if (!string.IsNullOrEmpty(databaseUrl))
 {
-    // Limpeza da URL para o formato Npgsql
     databaseUrl = databaseUrl.Replace("postgresql://", "postgres://");
     var uri = new Uri(databaseUrl);
     var userInfo = uri.UserInfo.Split(':');
@@ -66,12 +64,11 @@ else
     builder.Services.AddDbContext<FinanceDbContext>(options => options.UseSqlite(connectionString));
 }
 
-// --- 6. IDENTITY E AUTENTICAÇÃO JWT ---
+// --- 6. IDENTITY E JWT ---
 builder.Services.AddIdentity<IdentityUser, IdentityRole>()
     .AddEntityFrameworkStores<FinanceDbContext>()
     .AddDefaultTokenProviders();
 
-// Sincronizando com a variável exata do seu Railway
 var secretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY") 
                 ?? Environment.GetEnvironmentVariable("JWT_SECRET") 
                 ?? "ChaveDeSegurancaReservaParaEvitarErros123!";
@@ -85,7 +82,7 @@ builder.Services.AddAuthentication(options =>
 {
     options.TokenValidationParameters = new TokenValidationParameters
     {
-        ValidateIssuer = false, // Facilitando em produção inicial
+        ValidateIssuer = false,
         ValidateAudience = false,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
@@ -95,37 +92,34 @@ builder.Services.AddAuthentication(options =>
 
 // --- 7. SWAGGER ---
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen(options =>
-{
-    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
-    {
-        Name = "Authorization",
-        Type = SecuritySchemeType.Http,
-        Scheme = "Bearer",
-        BearerFormat = "JWT",
-        In = ParameterLocation.Header
-    });
-    options.AddSecurityRequirement(new OpenApiSecurityRequirement {
-        { new OpenApiSecurityScheme { Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" } }, Array.Empty<string>() }
-    });
-});
+builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// --- 8. PIPELINE DE MIDDLEWARE (ORDEM CRÍTICA) ---
+// --- 8. AUTO-MIGRATION (A correção para o erro de tabelas faltando) ---
+using (var scope = app.Services.CreateScope())
+{
+    var services = scope.ServiceProvider;
+    try
+    {
+        var context = services.GetRequiredService<FinanceDbContext>();
+        // Cria o banco e as tabelas (AspNetUsers, etc) se não existirem
+        context.Database.Migrate(); 
+        Console.WriteLine("🚀 Banco de dados sincronizado com sucesso!");
+    }
+    catch (Exception ex)
+    {
+        Console.WriteLine($"❌ Erro ao migrar banco: {ex.Message}");
+    }
+}
 
-// Em produção, queremos ver o que deu errado nos logs do Railway
+// --- 9. MIDDLEWARES (Ordem Crítica) ---
 app.UseDeveloperExceptionPage(); 
-
 app.UseRouting();
-
-// O CORS precisa vir ANTES de Authentication e Authorization
-app.UseCors("VercelPolicy"); 
-
+app.UseCors("VercelPolicy"); // Sempre antes da Auth
 app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapControllers();
-app.MapGet("/health", () => Results.Ok(new { status = "Healthy", time = DateTime.UtcNow }));
+app.MapGet("/health", () => Results.Ok(new { status = "Healthy", db = "Ready" }));
 
 app.Run();
