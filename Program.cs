@@ -12,59 +12,58 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Adiciona os serviços (Controllers) ao contêiner.
+// 1. Serviços e Controllers
 builder.Services.AddControllers();
 
-// Configuração de CORS
+// 2. Configuração de CORS (Sincronizado com o Railway)
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("VercelPolicy", policy =>
     {
-        var frontendUrl = builder.Configuration["FRONTEND_URL"];
+        // Busca a variável exata do seu painel Railway
+        var frontendUrl = Environment.GetEnvironmentVariable("URL_FRONTEND") 
+                          ?? builder.Configuration["FRONTEND_URL"];
+        
         var origins = new List<string> { "http://localhost:4200", "http://localhost:4000" };
+        
         if (!string.IsNullOrEmpty(frontendUrl))
         {
-            origins.Add(frontendUrl);
+            origins.Add(frontendUrl.TrimEnd('/'));
         }
         
         policy.WithOrigins(origins.ToArray())
-              .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
-              .WithHeaders("Content-Type", "Authorization");
+              .AllowAnyMethod()
+              .AllowAnyHeader()
+              .AllowCredentials();
     });
 });
 
-// Configura a Injeção de Dependência
+// 3. Injeção de Dependência
 builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
 builder.Services.AddScoped<TokenService>();
 
-// Configura o Entity Framework Core (PostgreSQL na Nuvem ou SQLite Local)
+// 4. Banco de Dados PostgreSQL (Railway) ou SQLite (Local)
 var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
-
 if (!string.IsNullOrEmpty(databaseUrl))
 {
-    // Parse URI do Railway para Connection String
     var uri = new Uri(databaseUrl);
     var userInfo = uri.UserInfo.Split(':');
     var connectionString = $"Host={uri.Host};Port={(uri.Port > 0 ? uri.Port : 5432)};Database={uri.LocalPath.TrimStart('/')};Username={userInfo[0]};Password={userInfo[1]};SslMode=Prefer;TrustServerCertificate=true;";
-
-    builder.Services.AddDbContext<FinanceDbContext>(options =>
-        options.UseNpgsql(connectionString));
+    builder.Services.AddDbContext<FinanceDbContext>(options => options.UseNpgsql(connectionString));
 }
 else
 {
     var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? "";
-    builder.Services.AddDbContext<FinanceDbContext>(options =>
-        options.UseSqlite(connectionString));
+    builder.Services.AddDbContext<FinanceDbContext>(options => options.UseSqlite(connectionString));
 }
 
-// Configuração do Identity
+// 5. Identity e Autenticação JWT
 builder.Services.AddIdentity<IdentityUser, IdentityRole>()
     .AddEntityFrameworkStores<FinanceDbContext>()
     .AddDefaultTokenProviders();
 
-// Configuração da Autenticação JWT
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-var secretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY") ?? jwtSettings["SecretKey"] ?? "ChaveDeDesenvolvimentoSuperSecretaPadraoParaEvitarCrash123!";
+var secretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY") ?? "ChaveDeSegurancaReservaParaEvitarErros123!";
 
 builder.Services.AddAuthentication(options =>
 {
@@ -85,58 +84,36 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-// Configuração do Swagger/OpenAPI com suporte a JWT
+// 6. Swagger
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
-    var xmlFilename = $"{Assembly.GetExecutingAssembly().GetName().Name}.xml";
-    options.IncludeXmlComments(Path.Combine(AppContext.BaseDirectory, xmlFilename));
-
-    // Configuração para adicionar o botão "Authorize" no Swagger
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
         Type = SecuritySchemeType.Http,
         Scheme = "Bearer",
         BearerFormat = "JWT",
-        In = ParameterLocation.Header,
-        Description = "Insira o token JWT. O Swagger já cuida de colocar o prefixo 'Bearer '."
+        In = ParameterLocation.Header
     });
-
-    options.AddSecurityRequirement(new OpenApiSecurityRequirement
-    {
-        {
-            new OpenApiSecurityScheme
-            {
-                Reference = new OpenApiReference
-                {
-                    Type = ReferenceType.SecurityScheme,
-                    Id = "Bearer"
-                }
-            },
-            Array.Empty<string>()
-        }
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement {
+        { new OpenApiSecurityScheme { Reference = new OpenApiReference { Type = ReferenceType.SecurityScheme, Id = "Bearer" } }, Array.Empty<string>() }
     });
 });
 
 var app = builder.Build();
 
-// Configura o pipeline de requisições HTTP.
+// 7. Pipeline de Middleware
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
-
-// Importante: O CORS deve ser ativado ANTES da autenticação e autorização
-app.UseCors("VercelPolicy");
-
-// Importante: A ordem de UseAuthentication e UseAuthorization importa.
+app.UseCors("VercelPolicy"); // CORS sempre antes da Auth
 app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapControllers();
+app.MapGet("/health", () => Results.Ok(new { status = "Healthy" }));
 
 app.Run();
