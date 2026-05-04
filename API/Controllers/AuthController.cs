@@ -18,16 +18,11 @@ namespace FinanceAPI.API.Controllers
             _tokenService = tokenService;
         }
 
-        /// <summary>
-        /// Realiza o login do usuário e retorna um token JWT.
-        /// Caso o usuário não exista, cria-o automaticamente (Apenas para MVP).
-        /// </summary>
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDTO model)
         {
             var user = await _userManager.FindByEmailAsync(model.Email);
             
-            // Lógica facilitadora para o MVP: se não existe, cria um
             if (user == null)
             {
                 user = new IdentityUser { UserName = model.Email, Email = model.Email };
@@ -39,6 +34,26 @@ namespace FinanceAPI.API.Controllers
             if (!isValidPassword)
             {
                 return Unauthorized(new { message = "Credenciais inválidas" });
+            }
+
+            var token = _tokenService.GenerateToken(user);
+            return Ok(new { token });
+        }
+
+        // --- AJUSTE: Endpoint para o botão "Acesso Demonstrativo" ---
+        [HttpPost("demo")]
+        public async Task<IActionResult> LoginDemo()
+        {
+            var demoEmail = "guest@rondon.com";
+            var demoPass = "Guest@123";
+            
+            var user = await _userManager.FindByEmailAsync(demoEmail);
+            
+            if (user == null)
+            {
+                user = new IdentityUser { UserName = "GuestUser", Email = demoEmail };
+                // Cria o usuário demo se ele ainda não existir no banco do Railway
+                await _userManager.CreateAsync(user, demoPass);
             }
 
             var token = _tokenService.GenerateToken(user);
