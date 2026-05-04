@@ -15,20 +15,26 @@ var builder = WebApplication.CreateBuilder(args);
 // 1. Serviços e Controllers
 builder.Services.AddControllers();
 
-// 2. Configuração de CORS (Sincronizado com o Railway)
+// 2. Configuração de CORS (Sincronizado com o Railway + Produção Fixa)
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("VercelPolicy", policy =>
     {
-        // Busca a variável exata do seu painel Railway
-        var frontendUrl = Environment.GetEnvironmentVariable("URL_FRONTEND") 
-                          ?? builder.Configuration["FRONTEND_URL"];
+        // Busca a variável do Railway
+        var frontendUrlEnv = Environment.GetEnvironmentVariable("URL_FRONTEND") 
+                             ?? builder.Configuration["FRONTEND_URL"];
         
-        var origins = new List<string> { "http://localhost:4200", "http://localhost:4000" };
+        // Lista robusta de origens autorizadas
+        var origins = new List<string> 
+        { 
+            "http://localhost:4200", 
+            "http://localhost:4000",
+            "https://guilhermerondon-interface.vercel.app" // URL principal de produção
+        };
         
-        if (!string.IsNullOrEmpty(frontendUrl))
+        if (!string.IsNullOrEmpty(frontendUrlEnv))
         {
-            origins.Add(frontendUrl.TrimEnd('/'));
+            origins.Add(frontendUrlEnv.TrimEnd('/'));
         }
         
         policy.WithOrigins(origins.ToArray())
