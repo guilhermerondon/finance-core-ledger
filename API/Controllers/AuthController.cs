@@ -27,7 +27,7 @@ namespace FinanceAPI.API.Controllers
             {
                 user = new IdentityUser { UserName = model.Email, Email = model.Email };
                 var result = await _userManager.CreateAsync(user, model.Senha);
-                if (!result.Succeeded) return Unauthorized(result.Errors);
+                if (!result.Succeeded) return BadRequest(new { message = "Erro ao criar usuário", errors = result.Errors });
             }
 
             var isValidPassword = await _userManager.CheckPasswordAsync(user, model.Senha);
@@ -40,24 +40,36 @@ namespace FinanceAPI.API.Controllers
             return Ok(new { token });
         }
 
-        // --- AJUSTE: Endpoint para o botão "Acesso Demonstrativo" ---
         [HttpPost("demo")]
         public async Task<IActionResult> LoginDemo()
         {
-            var demoEmail = "guest@rondon.com";
-            var demoPass = "Guest@123";
-            
-            var user = await _userManager.FindByEmailAsync(demoEmail);
-            
-            if (user == null)
+            try 
             {
-                user = new IdentityUser { UserName = "GuestUser", Email = demoEmail };
-                // Cria o usuário demo se ele ainda não existir no banco do Railway
-                await _userManager.CreateAsync(user, demoPass);
-            }
+                var demoEmail = "guest@rondon.com";
+                var demoPass = "Guest@123";
+                
+                var user = await _userManager.FindByEmailAsync(demoEmail);
+                
+                if (user == null)
+                {
+                    // Forçamos o UserName a ser o e-mail para evitar conflitos de validação no Postgres
+                    user = new IdentityUser { UserName = demoEmail, Email = demoEmail };
+                    var result = await _userManager.CreateAsync(user, demoPass);
+                    
+                    if (!result.Succeeded) 
+                    {
+                        return BadRequest(new { message = "Falha ao criar convidado", errors = result.Errors });
+                    }
+                }
 
-            var token = _tokenService.GenerateToken(user);
-            return Ok(new { token });
+                var token = _tokenService.GenerateToken(user);
+                return Ok(new { token });
+            }
+            catch (Exception ex)
+            {
+                // Se der erro 500, agora você verá o motivo real (ex: banco sem tabelas)
+                return StatusCode(500, new { message = "Erro interno no servidor", detail = ex.Message });
+            }
         }
     }
 }
