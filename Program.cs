@@ -7,19 +7,20 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using System.Reflection;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// --- 1. LOGS ---
+// --- 1. LOGS E MONITORAMENTO ---
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 
-// --- 2. CONTROLLERS ---
+// --- 2. SERVIÇOS BÁSICOS ---
 builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
-// --- 3. CORS (Sincronizado com Vercel) ---
+// --- 3. CONFIGURAÇÃO DE CORS (Alinhado com a Vercel) ---
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("VercelPolicy", policy =>
@@ -43,11 +44,7 @@ builder.Services.AddCors(options =>
     });
 });
 
-// --- 4. INJEÇÃO DE DEPENDÊNCIA ---
-builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
-builder.Services.AddScoped<TokenService>();
-
-// --- 5. BANCO DE DADOS (PostgreSQL Railway) ---
+// --- 4. BANCO DE DADOS (PostgreSQL Railway com Fallback SQLite) ---
 var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
 if (!string.IsNullOrEmpty(databaseUrl))
 {
@@ -64,7 +61,7 @@ else
     builder.Services.AddDbContext<FinanceDbContext>(options => options.UseSqlite(connectionString));
 }
 
-// --- 6. IDENTITY E JWT ---
+// --- 5. IDENTITY E SEGURANÇA JWT ---
 builder.Services.AddIdentity<IdentityUser, IdentityRole>()
     .AddEntityFrameworkStores<FinanceDbContext>()
     .AddDefaultTokenProviders();
@@ -90,36 +87,49 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-// --- 7. SWAGGER ---
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+// --- 6. INJEÇÃO DE DEPENDÊNCIA ---
+builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
+builder.Services.AddScoped<TokenService>();
 
 var app = builder.Build();
 
-// --- 8. AUTO-MIGRATION (A correção para o erro de tabelas faltando) ---
+// --- 7. SINCRONIZAÇÃO DE BANCO (O ajuste crítico) ---
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
     try
     {
         var context = services.GetRequiredService<FinanceDbContext>();
-        // Cria o banco e as tabelas (AspNetUsers, etc) se não existirem
-        context.Database.Migrate(); 
-        Console.WriteLine("🚀 Banco de dados sincronizado com sucesso!");
+        // EnsureCreated cria as tabelas IMEDIATAMENTE se elas não existirem.
+        // É a solução ideal quando não se quer lidar com a pasta Migrations no deploy.
+        context.Database.EnsureCreated(); 
+        Console.WriteLine("🚀 Tabelas do ecossistema sincronizadas com sucesso!");
     }
     catch (Exception ex)
     {
-        Console.WriteLine($"❌ Erro ao migrar banco: {ex.Message}");
+        Console.WriteLine($"❌ Erro crítico na infraestrutura: {ex.Message}");
     }
 }
 
-// --- 9. MIDDLEWARES (Ordem Crítica) ---
+// --- 8. PIPELINE DE MIDDLEWARE (Ordem de Execução) ---
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
 app.UseDeveloperExceptionPage(); 
 app.UseRouting();
-app.UseCors("VercelPolicy"); // Sempre antes da Auth
+
+// O CORS deve vir obrigatoriamente antes da Autenticação
+app.UseCors("VercelPolicy"); 
+
 app.UseAuthentication();
 app.UseAuthorization();
+
 app.MapControllers();
-app.MapGet("/health", () => Results.Ok(new { status = "Healthy", db = "Ready" }));
+
+// Health Check para monitoramento do Railway
+app.MapGet("/health", () => Results.Ok(new { status = "Healthy", db = "Connected" }));
 
 app.Run();
