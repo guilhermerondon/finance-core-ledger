@@ -12,24 +12,24 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// 1. Serviços e Controllers
+// --- 1. CONFIGURAÇÃO DE LOGS (Para debugar o Erro 500 no Railway) ---
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+
+// --- 2. SERVIÇOS E CONTROLLERS ---
 builder.Services.AddControllers();
 
-// 2. Configuração de CORS (Sincronizado com o Railway + Produção Fixa)
+// --- 3. CONFIGURAÇÃO DE CORS (Blindada contra erros de Origin) ---
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("VercelPolicy", policy =>
     {
-        // Busca a variável do Railway
-        var frontendUrlEnv = Environment.GetEnvironmentVariable("URL_FRONTEND") 
-                             ?? builder.Configuration["FRONTEND_URL"];
+        var frontendUrlEnv = Environment.GetEnvironmentVariable("URL_FRONTEND");
         
-        // Lista robusta de origens autorizadas
         var origins = new List<string> 
         { 
             "http://localhost:4200", 
-            "http://localhost:4000",
-            "https://guilhermerondon-interface.vercel.app" // URL principal de produção
+            "https://guilhermerondon-interface.vercel.app" // URL Oficial Fixa
         };
         
         if (!string.IsNullOrEmpty(frontendUrlEnv))
@@ -44,32 +44,37 @@ builder.Services.AddCors(options =>
     });
 });
 
-// 3. Injeção de Dependência
+// --- 4. INJEÇÃO DE DEPENDÊNCIA ---
 builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
 builder.Services.AddScoped<TokenService>();
 
-// 4. Banco de Dados PostgreSQL (Railway) ou SQLite (Local)
+// --- 5. BANCO DE DADOS POSTGRESQL (Railway) ---
 var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
 if (!string.IsNullOrEmpty(databaseUrl))
 {
+    // Limpeza da URL para o formato Npgsql
+    databaseUrl = databaseUrl.Replace("postgresql://", "postgres://");
     var uri = new Uri(databaseUrl);
     var userInfo = uri.UserInfo.Split(':');
-    var connectionString = $"Host={uri.Host};Port={(uri.Port > 0 ? uri.Port : 5432)};Database={uri.LocalPath.TrimStart('/')};Username={userInfo[0]};Password={userInfo[1]};SslMode=Prefer;TrustServerCertificate=true;";
+    var connectionString = $"Host={uri.Host};Port={(uri.Port > 0 ? uri.Port : 5432)};Database={uri.LocalPath.TrimStart('/')};Username={userInfo[0]};Password={userInfo[1]};SslMode=Require;TrustServerCertificate=true;";
+    
     builder.Services.AddDbContext<FinanceDbContext>(options => options.UseNpgsql(connectionString));
 }
 else
 {
-    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? "";
+    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? "Data Source=finance.db";
     builder.Services.AddDbContext<FinanceDbContext>(options => options.UseSqlite(connectionString));
 }
 
-// 5. Identity e Autenticação JWT
+// --- 6. IDENTITY E AUTENTICAÇÃO JWT ---
 builder.Services.AddIdentity<IdentityUser, IdentityRole>()
     .AddEntityFrameworkStores<FinanceDbContext>()
     .AddDefaultTokenProviders();
 
-var jwtSettings = builder.Configuration.GetSection("JwtSettings");
-var secretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY") ?? "ChaveDeSegurancaReservaParaEvitarErros123!";
+// Sincronizando com a variável exata do seu Railway
+var secretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY") 
+                ?? Environment.GetEnvironmentVariable("JWT_SECRET") 
+                ?? "ChaveDeSegurancaReservaParaEvitarErros123!";
 
 builder.Services.AddAuthentication(options =>
 {
@@ -80,17 +85,15 @@ builder.Services.AddAuthentication(options =>
 {
     options.TokenValidationParameters = new TokenValidationParameters
     {
-        ValidateIssuer = true,
-        ValidateAudience = true,
+        ValidateIssuer = false, // Facilitando em produção inicial
+        ValidateAudience = false,
         ValidateLifetime = true,
         ValidateIssuerSigningKey = true,
-        ValidIssuer = jwtSettings["Issuer"] ?? "FinanceAPI",
-        ValidAudience = jwtSettings["Audience"] ?? "FinanceSPA",
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
     };
 });
 
-// 6. Swagger
+// --- 7. SWAGGER ---
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -109,17 +112,20 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
-// 7. Pipeline de Middleware
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
+// --- 8. PIPELINE DE MIDDLEWARE (ORDEM CRÍTICA) ---
 
-app.UseCors("VercelPolicy"); // CORS sempre antes da Auth
+// Em produção, queremos ver o que deu errado nos logs do Railway
+app.UseDeveloperExceptionPage(); 
+
+app.UseRouting();
+
+// O CORS precisa vir ANTES de Authentication e Authorization
+app.UseCors("VercelPolicy"); 
+
 app.UseAuthentication();
 app.UseAuthorization();
+
 app.MapControllers();
-app.MapGet("/health", () => Results.Ok(new { status = "Healthy" }));
+app.MapGet("/health", () => Results.Ok(new { status = "Healthy", time = DateTime.UtcNow }));
 
 app.Run();
