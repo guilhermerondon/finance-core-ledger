@@ -10,5 +10,16 @@ namespace FinanceAPI.Infrastructure.Data
         public FinanceDbContext(DbContextOptions<FinanceDbContext> options) : base(options) { }
 
         public DbSet<Transaction> Transactions { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder builder)
+        {
+            base.OnModelCreating(builder);
+            builder.Entity<IdentityUser>(entity => {
+                entity.Property(e => e.EmailConfirmed).HasColumnType("boolean");
+                entity.Property(e => e.PhoneNumberConfirmed).HasColumnType("boolean");
+                entity.Property(e => e.TwoFactorEnabled).HasColumnType("boolean");
+                entity.Property(e => e.LockoutEnabled).HasColumnType("boolean");
+            });
+        }
     }
 }

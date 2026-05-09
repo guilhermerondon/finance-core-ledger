@@ -46,7 +46,7 @@ namespace FinanceAPI.API.Controllers
             try 
             {
                 var demoEmail = "guest@rondon.com";
-                var demoPass = "Guest@123";
+                var demoPass = "Guest@123!";
                 
                 var user = await _userManager.FindByEmailAsync(demoEmail);
                 
@@ -67,7 +67,7 @@ namespace FinanceAPI.API.Controllers
             }
             catch (Exception ex)
             {
-                // Se der erro 500, agora você verá o motivo real (ex: banco sem tabelas)
+                // Agora retornando a mensagem real para facilitar o debug no Railway
                 return StatusCode(500, new { message = "Erro interno no servidor", detail = ex.Message });
             }
         }
