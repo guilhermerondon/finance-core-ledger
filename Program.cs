@@ -103,6 +103,7 @@ using (var scope = app.Services.CreateScope())
         // EnsureCreated cria as tabelas IMEDIATAMENTE se elas não existirem.
         // É a solução ideal quando não se quer lidar com a pasta Migrations no deploy.
         context.Database.EnsureCreated(); 
+        Console.WriteLine($"Tabelas mapeadas: {string.Join(", ", context.Model.GetEntityTypes().Select(t => t.GetTableName()))}");
         Console.WriteLine("🚀 Infraestrutura PostgreSQL: Tabelas Identity e Finance sincronizadas.");
     }
     catch (Exception ex)
