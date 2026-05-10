@@ -32,6 +32,7 @@ namespace FinanceAPI.API.Controllers
             return Unauthorized();
         }
 
+        [AllowAnonymous]
         [HttpPost("anonymous")]
         public async Task<IActionResult> LoginAnonymous()
         {
@@ -40,13 +41,20 @@ namespace FinanceAPI.API.Controllers
             var guestEmail = $"guest_{timestamp}_{random}@gr.com";
             var guestUser = new IdentityUser { UserName = guestEmail, Email = guestEmail };
 
-            var result = await _userManager.CreateAsync(guestUser, "Guest@123!");
+            // Senha robusta para cumprir requisitos do Identity
+            var guestPassword = "GuestPassword@123!";
+            
+            Console.WriteLine($"[AUTH] Tentando criar usuário anônimo: {guestEmail}");
+
+            var result = await _userManager.CreateAsync(guestUser, guestPassword);
             if (result.Succeeded)
             {
+                Console.WriteLine($"[AUTH] Usuário anônimo criado com sucesso: {guestUser.Id}");
                 var token = _tokenService.GenerateToken(guestUser);
                 return Ok(new { token });
             }
 
+            Console.WriteLine($"[AUTH] Erro ao criar usuário anônimo: {string.Join(", ", result.Errors.Select(e => e.Description))}");
             return BadRequest(result.Errors);
         }
 
