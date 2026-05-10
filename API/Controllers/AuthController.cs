@@ -2,6 +2,7 @@ using FinanceAPI.Application.DTOs;
 using FinanceAPI.Application.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace FinanceAPI.API.Controllers
 {
