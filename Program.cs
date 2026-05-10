@@ -19,6 +19,7 @@ builder.Logging.AddConsole();
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddHealthChecks();
 
 // --- 3. CONFIGURAÇÃO DE CORS (Alinhado com a Vercel) ---
 builder.Services.AddCors(options =>
@@ -130,7 +131,7 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-// Health Check para monitoramento do Railway
-app.MapGet("/health", () => Results.Ok(new { status = "Healthy", db = "Connected" }));
+// Health Check oficial para monitoramento (Railway / Watchdog)
+app.MapHealthChecks("/health").AllowAnonymous();
 
 app.Run();
