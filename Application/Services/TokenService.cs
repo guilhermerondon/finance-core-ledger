@@ -24,7 +24,11 @@ namespace FinanceAPI.Application.Services
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
 
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["JwtSettings:SecretKey"]!));
+            var secretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY") 
+                            ?? Environment.GetEnvironmentVariable("JWT_SECRET") 
+                            ?? "ChaveDeSegurancaReservaParaEvitarErros123!";
+
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             var token = new JwtSecurityToken(

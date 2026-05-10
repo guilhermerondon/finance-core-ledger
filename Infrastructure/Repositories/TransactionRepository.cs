@@ -14,14 +14,17 @@ namespace FinanceAPI.Infrastructure.Repositories
             _context = context;
         }
 
-        public async Task<IEnumerable<Transaction>> GetAllAsync()
+        public async Task<IEnumerable<Transaction>> GetAllAsync(string userId)
         {
-            return await _context.Transactions.ToListAsync();
+            return await _context.Transactions
+                .Where(t => t.UserId == userId)
+                .ToListAsync();
         }
 
-        public async Task<Transaction?> GetByIdAsync(int id)
+        public async Task<Transaction?> GetByIdAsync(int id, string userId)
         {
-            return await _context.Transactions.FindAsync(id);
+            return await _context.Transactions
+                .FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId);
         }
 
         public async Task AddAsync(Transaction transaction)

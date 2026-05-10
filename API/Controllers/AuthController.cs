@@ -23,15 +23,38 @@ namespace FinanceAPI.API.Controllers
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginDTO model)
         {
-            // BYPASS: Retornando sucesso imediato com token fake
-            return Ok(new { token = "fake-jwt-token-for-stabilization" });
+            var user = await _userManager.FindByEmailAsync(model.Email);
+            if (user != null && await _userManager.CheckPasswordAsync(user, model.Senha))
+            {
+                var token = _tokenService.GenerateToken(user);
+                return Ok(new { token });
+            }
+            return Unauthorized();
+        }
+
+        [HttpPost("anonymous")]
+        public async Task<IActionResult> LoginAnonymous()
+        {
+            var timestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var random = Guid.NewGuid().ToString().Substring(0, 8);
+            var guestEmail = $"guest_{timestamp}_{random}@gr.com";
+            var guestUser = new IdentityUser { UserName = guestEmail, Email = guestEmail };
+
+            var result = await _userManager.CreateAsync(guestUser, "Guest@123!");
+            if (result.Succeeded)
+            {
+                var token = _tokenService.GenerateToken(guestUser);
+                return Ok(new { token });
+            }
+
+            return BadRequest(result.Errors);
         }
 
         [HttpPost("demo")]
         public async Task<IActionResult> LoginDemo()
         {
-            // BYPASS: Retornando sucesso imediato com token fake
-            return Ok(new { token = "fake-jwt-token-for-stabilization" });
+            // O demo agora é sinônimo de anonymous para isolamento total
+            return await LoginAnonymous();
         }
     }
 }
