@@ -90,6 +90,7 @@ builder.Services.AddAuthentication(options =>
 
 // --- 6. INJEÇÃO DE DEPENDÊNCIA ---
 builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
+builder.Services.AddScoped<TransactionService>();
 builder.Services.AddScoped<TokenService>();
 
 var app = builder.Build();

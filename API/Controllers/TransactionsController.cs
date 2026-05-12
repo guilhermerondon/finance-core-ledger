@@ -1,4 +1,5 @@
 using FinanceAPI.Application.DTOs;
+using FinanceAPI.Application.Services;
 using FinanceAPI.Domain.Entities;
 using FinanceAPI.Domain.Interfaces;
 using Microsoft.AspNetCore.Authorization;
@@ -11,25 +12,31 @@ namespace FinanceAPI.API.Controllers
     [Route("api/[controller]")]
     public class TransactionsController : ControllerBase
     {
-        private readonly ITransactionRepository _repository;
+        private readonly TransactionService _service;
 
-        public TransactionsController(ITransactionRepository repository)
+        public TransactionsController(TransactionService service)
         {
-            _repository = repository;
+            _service = service;
         }
 
-        /// <summary>
-        /// Obtém todas as transações cadastradas.
-        /// </summary>
-        /// <returns>Uma lista de transações.</returns>
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Transaction>>> GetTransactions()
         {
             var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-            var transactions = await _repository.GetAllAsync(userId);
+            var transactions = await _service.GetUserTransactionsAsync(userId);
             return Ok(transactions);
+        }
+
+        [HttpGet("balance")]
+        public async Task<ActionResult<decimal>> GetBalance()
+        {
+            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId)) return Unauthorized();
+
+            var balance = await _service.CalculateBalanceAsync(userId);
+            return Ok(balance);
         }
 
         [HttpGet("{id}")]
@@ -38,7 +45,7 @@ namespace FinanceAPI.API.Controllers
             var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-            var transaction = await _repository.GetByIdAsync(id, userId);
+            var transaction = await _service.GetTransactionByIdAsync(id, userId);
 
             if (transaction == null)
             {
@@ -68,7 +75,7 @@ namespace FinanceAPI.API.Controllers
                 UserId = userId
             };
 
-            await _repository.AddAsync(transaction);
+            await _service.AddTransactionAsync(transaction);
             return CreatedAtAction(nameof(GetTransaction), new { id = transaction.Id }, transaction);
         }
 
@@ -83,7 +90,7 @@ namespace FinanceAPI.API.Controllers
                 return BadRequest(new { message = "O tipo deve ser apenas 'Income' ou 'Expense'." });
             }
 
-            var transaction = await _repository.GetByIdAsync(id, userId);
+            var transaction = await _service.GetTransactionByIdAsync(id, userId);
             if (transaction == null)
             {
                 return NotFound();
@@ -94,7 +101,7 @@ namespace FinanceAPI.API.Controllers
             transaction.Date = transacaoDto.Data;
             transaction.Type = transacaoDto.Tipo;
 
-            await _repository.UpdateAsync(transaction);
+            await _service.UpdateTransactionAsync(transaction);
 
             return NoContent();
         }
@@ -105,13 +112,7 @@ namespace FinanceAPI.API.Controllers
             var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-            var transaction = await _repository.GetByIdAsync(id, userId);
-            if (transaction == null)
-            {
-                return NotFound();
-            }
-
-            await _repository.DeleteAsync(id);
+            await _service.DeleteTransactionAsync(id, userId);
             return NoContent();
         }
     }
