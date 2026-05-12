@@ -1,2 +1,5 @@
-[variables]
-  DOTNET_STARTUP_PROJECT = "FinanceAPI.csproj"
+[build]
+  command = "dotnet publish FinanceAPI.csproj -c Release -o out"
+
+[start]
+  command = "dotnet out/FinanceAPI.dll"
