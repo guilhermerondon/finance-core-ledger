@@ -2,4 +2,4 @@
   command = "dotnet publish FinanceAPI.csproj -c Release -o out"
 
 [start]
-  command = "./out/FinanceAPI"
+  command = "dotnet out/FinanceAPI.dll"
