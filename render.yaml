@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: finance-core-ledger-free
+    runtime: docker # Usando Docker para garantir compatibilidade total no Render
+    plan: free
+    region: oregon
+    envVars:
+      - key: DATABASE_URL
+        value: postgresql://postgres:gui16maria22%4003@db.jduijfkxcikpwvyrvrap.supabase.co:5432/postgres
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: JWT_SECRET
+        value: ChaveDeSegurancaReservaParaEvitarErros123!
+      - key: URL_FRONTEND
+        value: https://guilhermerondon-interface.vercel.app
