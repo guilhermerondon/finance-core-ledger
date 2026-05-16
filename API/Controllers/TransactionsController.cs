@@ -61,17 +61,25 @@ namespace FinanceAPI.API.Controllers
             var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-            if (transacaoDto.Tipo != "Income" && transacaoDto.Tipo != "Expense")
+            // Normaliza o tipo para o formato esperado pelo sistema (PascalCase)
+            var tipoNormalizado = transacaoDto.Tipo?.Trim().ToLower() switch
             {
-                return BadRequest(new { message = "O tipo deve ser apenas 'Income' ou 'Expense'." });
+                "income" or "entrada" or "receita" => "Income",
+                "expense" or "saida" or "saída" or "despesa" => "Expense",
+                _ => transacaoDto.Tipo
+            };
+ 
+            if (tipoNormalizado != "Income" && tipoNormalizado != "Expense")
+            {
+                return BadRequest(new { message = "O tipo deve ser 'Income' (Entrada) ou 'Expense' (Saída)." });
             }
-
+ 
             var transaction = new Transaction
             {
                 Description = transacaoDto.Descricao,
                 Amount = transacaoDto.Valor,
                 Date = transacaoDto.Data,
-                Type = transacaoDto.Tipo,
+                Type = tipoNormalizado,
                 UserId = userId
             };
 
@@ -85,9 +93,16 @@ namespace FinanceAPI.API.Controllers
             var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
-            if (transacaoDto.Tipo != "Income" && transacaoDto.Tipo != "Expense")
+            var tipoNormalizado = transacaoDto.Tipo?.Trim().ToLower() switch
             {
-                return BadRequest(new { message = "O tipo deve ser apenas 'Income' ou 'Expense'." });
+                "income" or "entrada" or "receita" => "Income",
+                "expense" or "saida" or "saída" or "despesa" => "Expense",
+                _ => transacaoDto.Tipo
+            };
+
+            if (tipoNormalizado != "Income" && tipoNormalizado != "Expense")
+            {
+                return BadRequest(new { message = "O tipo deve ser 'Income' (Entrada) ou 'Expense' (Saída)." });
             }
 
             var transaction = await _service.GetTransactionByIdAsync(id, userId);
@@ -99,7 +114,7 @@ namespace FinanceAPI.API.Controllers
             transaction.Description = transacaoDto.Descricao;
             transaction.Amount = transacaoDto.Valor;
             transaction.Date = transacaoDto.Data;
-            transaction.Type = transacaoDto.Tipo;
+            transaction.Type = tipoNormalizado;
 
             await _service.UpdateTransactionAsync(transaction);
 
