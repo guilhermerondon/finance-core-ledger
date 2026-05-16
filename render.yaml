@@ -6,7 +6,7 @@ services:
     region: oregon
     envVars:
       - key: DATABASE_URL
-        value: postgresql://postgres:gui16maria22%4003@db.jduijfkxcikpwvyrvrap.supabase.co:5432/postgres
+        value: postgresql://postgres.jduijfkxcikpwvyrvrap:gui16maria22%4003@aws-1-sa-east-1.pooler.supabase.com:5432/postgres
       - key: ASPNETCORE_ENVIRONMENT
         value: Production
       - key: JWT_SECRET
