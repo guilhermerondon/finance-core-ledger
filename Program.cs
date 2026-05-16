@@ -45,14 +45,23 @@ builder.Services.AddCors(options =>
     });
 });
 
-// --- 4. BANCO DE DADOS (PostgreSQL Railway com Fallback SQLite) ---
+// --- 4. BANCO DE DADOS (PostgreSQL Parser para URLs do Supabase/Render) ---
 var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
 if (!string.IsNullOrEmpty(databaseUrl))
 {
+    // Render/Supabase podem vir como postgresql:// ou postgres://
     databaseUrl = databaseUrl.Replace("postgresql://", "postgres://");
     var uri = new Uri(databaseUrl);
     var userInfo = uri.UserInfo.Split(':');
-    var connectionString = $"Host={uri.Host};Port={(uri.Port > 0 ? uri.Port : 5432)};Database={uri.LocalPath.TrimStart('/')};Username={userInfo[0]};Password={userInfo[1]};SslMode=Require;TrustServerCertificate=true;";
+    
+    // Decodificar caracteres especiais (como @ encodado como %40)
+    var username = Uri.UnescapeDataString(userInfo[0]);
+    var password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : "";
+    var host = uri.Host;
+    var port = uri.Port > 0 ? uri.Port : 5432;
+    var database = uri.LocalPath.TrimStart('/');
+
+    var connectionString = $"Host={host};Port={port};Database={database};Username={username};Password={password};SslMode=Require;TrustServerCertificate=true;";
     
     builder.Services.AddDbContext<FinanceDbContext>(options => options.UseNpgsql(connectionString));
 }
