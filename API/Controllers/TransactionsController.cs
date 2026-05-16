@@ -111,8 +111,14 @@ namespace FinanceAPI.API.Controllers
         {
             var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
-
-            await _service.DeleteTransactionAsync(id, userId);
+ 
+            var deleted = await _service.DeleteTransactionAsync(id, userId);
+            
+            if (!deleted)
+            {
+                return NotFound(new { message = "Transação não encontrada ou acesso negado." });
+            }
+ 
             return NoContent();
         }
     }

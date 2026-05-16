@@ -8,6 +8,6 @@ namespace FinanceAPI.Domain.Interfaces
         Task<Transaction?> GetByIdAsync(int id, string userId);
         Task AddAsync(Transaction transaction);
         Task UpdateAsync(Transaction transaction);
-        Task DeleteAsync(int id);
+        Task DeleteAsync(int id, string userId);
     }
 }

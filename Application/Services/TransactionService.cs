@@ -47,13 +47,16 @@ namespace FinanceAPI.Application.Services
             await _repository.UpdateAsync(transaction);
         }
 
-        public async Task DeleteTransactionAsync(int id, string userId)
+        public async Task<bool> DeleteTransactionAsync(int id, string userId)
         {
             var transaction = await _repository.GetByIdAsync(id, userId);
+            
             if (transaction != null)
             {
-                await _repository.DeleteAsync(id);
+                await _repository.DeleteAsync(id, userId);
+                return true;
             }
+            return false;
         }
     }
 }

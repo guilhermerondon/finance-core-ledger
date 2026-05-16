@@ -39,9 +39,11 @@ namespace FinanceAPI.Infrastructure.Repositories
             await _context.SaveChangesAsync();
         }
 
-        public async Task DeleteAsync(int id)
+        public async Task DeleteAsync(int id, string userId)
         {
-            var transaction = await _context.Transactions.FindAsync(id);
+            var transaction = await _context.Transactions
+                .FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId);
+            
             if (transaction != null)
             {
                 _context.Transactions.Remove(transaction);
