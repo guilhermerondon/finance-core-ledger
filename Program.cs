@@ -111,9 +111,10 @@ using (var scope = app.Services.CreateScope())
     try
     {
         var context = services.GetRequiredService<FinanceDbContext>();
-        // EnsureCreated cria as tabelas IMEDIATAMENTE se elas não existirem.
-        // É a solução ideal quando não se quer lidar com a pasta Migrations no deploy.
+        
+        // Aplica as migrations pendentes para manter o esquema atualizado no Supabase.
         context.Database.Migrate(); 
+        
         Console.WriteLine($"Tabelas mapeadas: {string.Join(", ", context.Model.GetEntityTypes().Select(t => t.GetTableName()))}");
         Console.WriteLine("🚀 Infraestrutura PostgreSQL: Tabelas Identity e Finance sincronizadas.");
     }
@@ -122,6 +123,8 @@ using (var scope = app.Services.CreateScope())
         Console.WriteLine($"❌ Erro crítico na infraestrutura: {ex.Message}");
     }
 }
+
+
 
 // --- 8. PIPELINE DE MIDDLEWARE (Ordem de Execução) ---
 if (app.Environment.IsDevelopment())
