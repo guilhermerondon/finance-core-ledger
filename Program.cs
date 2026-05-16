@@ -58,8 +58,8 @@ if (!string.IsNullOrEmpty(databaseUrl))
 }
 else
 {
-    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") ?? "Data Source=finance.db";
-    builder.Services.AddDbContext<FinanceDbContext>(options => options.UseSqlite(connectionString));
+    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+    builder.Services.AddDbContext<FinanceDbContext>(options => options.UseNpgsql(connectionString));
 }
 
 // --- 5. IDENTITY E SEGURANÇA JWT ---
@@ -104,7 +104,7 @@ using (var scope = app.Services.CreateScope())
         var context = services.GetRequiredService<FinanceDbContext>();
         // EnsureCreated cria as tabelas IMEDIATAMENTE se elas não existirem.
         // É a solução ideal quando não se quer lidar com a pasta Migrations no deploy.
-        context.Database.EnsureCreated(); 
+        context.Database.Migrate(); 
         Console.WriteLine($"Tabelas mapeadas: {string.Join(", ", context.Model.GetEntityTypes().Select(t => t.GetTableName()))}");
         Console.WriteLine("🚀 Infraestrutura PostgreSQL: Tabelas Identity e Finance sincronizadas.");
     }
