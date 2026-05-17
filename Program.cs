@@ -30,6 +30,8 @@ builder.Services.AddCors(options =>
         var frontendUrlEnv = Environment.GetEnvironmentVariable("URL_FRONTEND");
         var origins = new List<string> 
         { 
+            "https://guilhermerondon.com",
+            "https://www.guilhermerondon.com",
             "http://localhost:4200", 
             "https://guilhermerondon-interface.vercel.app" 
         };
