@@ -20,6 +20,7 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddHealthChecks();
+builder.Services.AddHttpClient();
 
 // --- 3. CONFIGURAÇÃO DE CORS (Alinhado com a Vercel) ---
 builder.Services.AddCors(options =>

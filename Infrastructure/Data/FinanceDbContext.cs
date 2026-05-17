@@ -10,6 +10,7 @@ namespace FinanceAPI.Infrastructure.Data
         public FinanceDbContext(DbContextOptions<FinanceDbContext> options) : base(options) { }
 
         public DbSet<Transaction> Transactions { get; set; }
+        public DbSet<ClickLog> ClickLogs { get; set; }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
