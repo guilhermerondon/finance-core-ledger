@@ -2,8 +2,11 @@ using FinanceAPI.Application.DTOs;
 using FinanceAPI.Application.Services;
 using FinanceAPI.Domain.Entities;
 using FinanceAPI.Domain.Interfaces;
+using FinanceAPI.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace FinanceAPI.API.Controllers
 {
@@ -13,10 +16,12 @@ namespace FinanceAPI.API.Controllers
     public class TransactionsController : ControllerBase
     {
         private readonly TransactionService _service;
+        private readonly FinanceDbContext _context;
 
-        public TransactionsController(TransactionService service)
+        public TransactionsController(TransactionService service, FinanceDbContext context)
         {
             _service = service;
+            _context = context;
         }
 
         [HttpGet]
@@ -124,17 +129,30 @@ namespace FinanceAPI.API.Controllers
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteTransaction(int id)
         {
-            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(userId)) return Unauthorized();
- 
-            var deleted = await _service.DeleteTransactionAsync(id, userId);
-            
-            if (!deleted)
-            {
-                return NotFound(new { message = "Transação não encontrada ou acesso negado." });
+            // 1. Extrair o UserId de forma segura
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (string.IsNullOrEmpty(userId)) return Unauthorized("Usuário não identificado.");
+
+            // 2. Buscar a transação
+            var transaction = await _context.Transactions
+                .FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId);
+
+            // 3. DEFESA CRÍTICA DE NULO (Evita o Erro 500)
+            if (transaction == null) {
+                return NotFound("Transação não encontrada ou você não tem permissão para excluí-la.");
             }
- 
-            return NoContent();
+
+            // 4. Executar a remoção em bloco seguro
+            try {
+                _context.Transactions.Remove(transaction);
+                await _context.SaveChangesAsync();
+                return NoContent(); // 204 Sucesso sem conteúdo
+            }
+            catch (Exception ex) {
+                // Loga o erro real no console do Render se o Postgres chiar
+                Console.WriteLine($"Erro crítico ao deletar: {ex.Message}");
+                return StatusCode(500, "Erro interno ao persistir a exclusão no banco.");
+            }
         }
     }
 }
