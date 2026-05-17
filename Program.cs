@@ -39,7 +39,7 @@ builder.Services.AddCors(options =>
         }
         
         policy.WithOrigins(origins.ToArray())
-              .AllowAnyMethod()
+              .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
               .AllowAnyHeader()
               .AllowCredentials();
     });
