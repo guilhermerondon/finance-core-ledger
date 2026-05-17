@@ -6,6 +6,7 @@ using FinanceAPI.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 
 namespace FinanceAPI.API.Controllers
@@ -27,7 +28,7 @@ namespace FinanceAPI.API.Controllers
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Transaction>>> GetTransactions()
         {
-            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(JwtRegisteredClaimNames.Sub);
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
             var transactions = await _service.GetUserTransactionsAsync(userId);
@@ -37,7 +38,7 @@ namespace FinanceAPI.API.Controllers
         [HttpGet("balance")]
         public async Task<ActionResult<decimal>> GetBalance()
         {
-            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(JwtRegisteredClaimNames.Sub);
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
             var balance = await _service.CalculateBalanceAsync(userId);
@@ -47,7 +48,7 @@ namespace FinanceAPI.API.Controllers
         [HttpGet("{id}")]
         public async Task<ActionResult<Transaction>> GetTransaction(int id)
         {
-            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(JwtRegisteredClaimNames.Sub);
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
             var transaction = await _service.GetTransactionByIdAsync(id, userId);
@@ -63,7 +64,7 @@ namespace FinanceAPI.API.Controllers
         [HttpPost]
         public async Task<ActionResult<Transaction>> PostTransaction(TransacaoCreateDTO transacaoDto)
         {
-            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(JwtRegisteredClaimNames.Sub);
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
             // Normaliza o tipo para o formato esperado pelo sistema (PascalCase)
@@ -95,7 +96,7 @@ namespace FinanceAPI.API.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> PutTransaction(int id, TransacaoCreateDTO transacaoDto)
         {
-            var userId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(JwtRegisteredClaimNames.Sub);
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
             var tipoNormalizado = transacaoDto.Tipo?.Trim().ToLower() switch
@@ -130,7 +131,7 @@ namespace FinanceAPI.API.Controllers
         public async Task<IActionResult> DeleteTransaction(int id)
         {
             // 1. Extrair o UserId de forma segura
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(JwtRegisteredClaimNames.Sub);
             if (string.IsNullOrEmpty(userId)) return Unauthorized("Usuário não identificado.");
 
             // 2. Buscar a transação
