@@ -1,5 +1,7 @@
 <img width="100%" src="https://capsule-render.vercel.app/api?type=waving&color=8b5cf6&height=110&section=header&animation=fadeIn"/>
 
+![.NET Core CI](https://github.com/guilhermerondon/finance-core-ledger/actions/workflows/ci-dotnet.yml/badge.svg)
+
 # Finance Core Ledger (.NET 8)
 
 Web API corporativa de alto desempenho desenvolvida em C#, projetada para servir como o motor transacional central do ecossistema. O sistema é responsável pela orquestração rigorosa de fluxos de caixa, conciliação e processamento de registros financeiros sob padrões estritos de integridade de dados e arquitetura desacoplada.
