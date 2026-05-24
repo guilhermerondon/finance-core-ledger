@@ -1,5 +1,7 @@
 using FinanceAPI.Application.Services;
 using FinanceAPI.Domain.Interfaces;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Threading.RateLimiting;
 using FinanceAPI.Infrastructure.Data;
 using FinanceAPI.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -113,6 +115,22 @@ builder.Services.AddScoped<TransactionService>();
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddHostedService<DataRetentionWorker>();
 
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? httpContext.Request.Headers.Host.ToString(),
+            factory: partition => new FixedWindowRateLimiterOptions
+            {
+                AutoReplenishment = true,
+                PermitLimit = 30, // Máximo de requisições permitidas
+                QueueLimit = 0,   // Não enfileirar, rejeitar imediatamente
+                Window = TimeSpan.FromMinutes(1) // Janela de tempo
+            }));
+});
+
 var app = builder.Build();
 
 var lifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
@@ -156,6 +174,8 @@ app.UseRouting();
 
 // O CORS deve vir obrigatoriamente antes da Autenticação
 app.UseCors("VercelPolicy"); 
+
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();
