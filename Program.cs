@@ -13,6 +13,11 @@ using FinanceCoreLedger.BackgroundServices;
 System.AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 var builder = WebApplication.CreateBuilder(args);
 
+builder.Services.Configure<HostOptions>(options =>
+{
+    options.ShutdownTimeout = TimeSpan.FromSeconds(15);
+});
+
 // --- 1. LOGS E MONITORAMENTO ---
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
@@ -109,6 +114,13 @@ builder.Services.AddScoped<TokenService>();
 builder.Services.AddHostedService<DataRetentionWorker>();
 
 var app = builder.Build();
+
+var lifetime = app.Services.GetRequiredService<IHostApplicationLifetime>();
+lifetime.ApplicationStopping.Register(() =>
+{
+    // Aqui garantimos que o log registre exatamente o momento do shutdown
+    app.Logger.LogInformation("Sinal de desligamento recebido. Iniciando Graceful Shutdown: aguardando finalização das transações e fechando conexões...");
+});
 
 // --- 7. SINCRONIZAÇÃO DE BANCO (O ajuste crítico) ---
 using (var scope = app.Services.CreateScope())
