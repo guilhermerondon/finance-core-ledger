@@ -6,10 +6,12 @@ namespace FinanceAPI.Application.Services
     public class TransactionService
     {
         private readonly ITransactionRepository _repository;
+        private readonly RabbitMqPublisher _rabbitMqPublisher;
 
-        public TransactionService(ITransactionRepository repository)
+        public TransactionService(ITransactionRepository repository, RabbitMqPublisher rabbitMqPublisher)
         {
             _repository = repository;
+            _rabbitMqPublisher = rabbitMqPublisher;
         }
 
         public async Task<IEnumerable<Transaction>> GetUserTransactionsAsync(string userId)
@@ -40,6 +42,7 @@ namespace FinanceAPI.Application.Services
         public async Task AddTransactionAsync(Transaction transaction)
         {
             await _repository.AddAsync(transaction);
+            _rabbitMqPublisher.PublishTransactionEvent(transaction);
         }
 
         public async Task UpdateTransactionAsync(Transaction transaction)
