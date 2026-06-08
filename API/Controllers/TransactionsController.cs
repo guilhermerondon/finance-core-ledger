@@ -74,12 +74,12 @@ namespace FinanceAPI.API.Controllers
                 "expense" or "saida" or "saída" or "despesa" => "Expense",
                 _ => transacaoDto.Tipo
             };
- 
+
             if (tipoNormalizado != "Income" && tipoNormalizado != "Expense")
             {
                 return BadRequest(new { message = "O tipo deve ser 'Income' (Entrada) ou 'Expense' (Saída)." });
             }
- 
+
             var transaction = new Transaction
             {
                 Description = transacaoDto.Descricao,
@@ -139,17 +139,20 @@ namespace FinanceAPI.API.Controllers
                 .FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId);
 
             // 3. DEFESA CRÍTICA DE NULO (Evita o Erro 500)
-            if (transaction == null) {
+            if (transaction == null)
+            {
                 return NotFound("Transação não encontrada ou você não tem permissão para excluí-la.");
             }
 
             // 4. Executar a remoção em bloco seguro
-            try {
+            try
+            {
                 _context.Transactions.Remove(transaction);
                 await _context.SaveChangesAsync();
                 return NoContent(); // 204 Sucesso sem conteúdo
             }
-            catch (Exception ex) {
+            catch (Exception ex)
+            {
                 // Loga o erro real no console do Render se o Postgres chiar
                 Console.WriteLine($"Erro crítico ao deletar: {ex.Message}");
                 return StatusCode(500, "Erro interno ao persistir a exclusão no banco.");

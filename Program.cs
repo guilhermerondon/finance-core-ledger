@@ -31,25 +31,24 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddHealthChecks();
 builder.Services.AddHttpClient();
 
-// --- 3. CONFIGURAÇÃO DE CORS (Alinhado com a Vercel) ---
+// --- 3. CONFIGURAÇÃO DE CORS ---
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("VercelPolicy", policy =>
+    options.AddPolicy("ProducaoPolicy", policy =>
     {
-        var frontendUrlEnv = Environment.GetEnvironmentVariable("URL_FRONTEND");
-        var origins = new List<string> 
-        { 
-            "https://guilhermerondon.com",
-            "https://www.guilhermerondon.com",
-            "http://localhost:4200", 
-            "https://guilhermerondon-interface.vercel.app" 
-        };
-        
-        if (!string.IsNullOrEmpty(frontendUrlEnv))
+        var origins = new List<string>
         {
-            origins.Add(frontendUrlEnv.TrimEnd('/'));
+            "https://guilhermerondon.com"
+        };
+
+        if (builder.Environment.IsDevelopment())
+        {
+            origins.Add("http://localhost:4200");
+            origins.Add("http://localhost:3000");
+            origins.Add("http://localhost:5173");
+            // Adicione outras portas localhost conforme necessário para dev
         }
-        
+
         policy.WithOrigins(origins.ToArray())
               .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
               .AllowAnyHeader()
@@ -65,7 +64,7 @@ if (!string.IsNullOrEmpty(databaseUrl))
     databaseUrl = databaseUrl.Replace("postgresql://", "postgres://");
     var uri = new Uri(databaseUrl);
     var userInfo = uri.UserInfo.Split(':');
-    
+
     // Decodificar caracteres especiais (como @ encodado como %40)
     var username = Uri.UnescapeDataString(userInfo[0]);
     var password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : "";
@@ -74,7 +73,7 @@ if (!string.IsNullOrEmpty(databaseUrl))
     var database = uri.LocalPath.TrimStart('/');
 
     var connectionString = $"Host={host};Port={port};Database={database};Username={username};Password={password};SslMode=Require;TrustServerCertificate=true;";
-    
+
     builder.Services.AddDbContext<FinanceDbContext>(options => options.UseNpgsql(connectionString));
 }
 else
@@ -88,8 +87,8 @@ builder.Services.AddIdentity<IdentityUser, IdentityRole>()
     .AddEntityFrameworkStores<FinanceDbContext>()
     .AddDefaultTokenProviders();
 
-var secretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY") 
-                ?? Environment.GetEnvironmentVariable("JWT_SECRET") 
+var secretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY")
+                ?? Environment.GetEnvironmentVariable("JWT_SECRET")
                 ?? "ChaveDeSegurancaReservaParaEvitarErros123!";
 
 builder.Services.AddAuthentication(options =>
@@ -119,14 +118,14 @@ builder.Services.AddHostedService<DataRetentionWorker>();
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
-    
+
     options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? httpContext.Request.Headers.Host.ToString(),
             factory: partition => new FixedWindowRateLimiterOptions
             {
                 AutoReplenishment = true,
-                PermitLimit = 30, // Máximo de requisições permitidas
+                PermitLimit = 60, // Máximo de requisições permitidas
                 QueueLimit = 0,   // Não enfileirar, rejeitar imediatamente
                 Window = TimeSpan.FromMinutes(1) // Janela de tempo
             }));
@@ -148,10 +147,10 @@ using (var scope = app.Services.CreateScope())
     try
     {
         var context = services.GetRequiredService<FinanceDbContext>();
-        
+
         // Aplica as migrations pendentes para manter o esquema atualizado no Supabase.
-        context.Database.Migrate(); 
-        
+        context.Database.Migrate();
+
         Console.WriteLine($"Tabelas mapeadas: {string.Join(", ", context.Model.GetEntityTypes().Select(t => t.GetTableName()))}");
         Console.WriteLine("🚀 Infraestrutura PostgreSQL: Tabelas Identity e Finance sincronizadas.");
     }
@@ -170,11 +169,11 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseDeveloperExceptionPage(); 
+app.UseDeveloperExceptionPage();
 app.UseRouting();
 
 // O CORS deve vir obrigatoriamente antes da Autenticação
-app.UseCors("VercelPolicy"); 
+app.UseCors("ProducaoPolicy");
 
 app.UseRateLimiter();
 

@@ -43,7 +43,7 @@ namespace FinanceAPI.API.Controllers
 
             // Senha robusta para cumprir requisitos do Identity
             var guestPassword = "GuestPassword@123!";
-            
+
             Console.WriteLine($"[AUTH] Tentando criar usuário anônimo: {guestEmail}");
 
             var result = await _userManager.CreateAsync(guestUser, guestPassword);

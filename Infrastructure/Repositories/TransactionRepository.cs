@@ -43,7 +43,7 @@ namespace FinanceAPI.Infrastructure.Repositories
         {
             var transaction = await _context.Transactions
                 .FirstOrDefaultAsync(t => t.Id == id && t.UserId == userId);
-            
+
             if (transaction != null)
             {
                 _context.Transactions.Remove(transaction);

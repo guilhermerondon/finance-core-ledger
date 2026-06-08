@@ -22,11 +22,11 @@ namespace FinanceAPI.Application.Services
         public async Task<decimal> CalculateBalanceAsync(string userId)
         {
             var transactions = await _repository.GetAllAsync(userId);
-            
+
             var income = transactions
                 .Where(t => t.Type == "Income")
                 .Sum(t => t.Amount);
-                
+
             var expense = transactions
                 .Where(t => t.Type == "Expense")
                 .Sum(t => t.Amount);
@@ -53,7 +53,7 @@ namespace FinanceAPI.Application.Services
         public async Task<bool> DeleteTransactionAsync(int id, string userId)
         {
             var transaction = await _repository.GetByIdAsync(id, userId);
-            
+
             if (transaction != null)
             {
                 await _repository.DeleteAsync(id, userId);

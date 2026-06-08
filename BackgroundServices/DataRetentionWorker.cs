@@ -31,13 +31,13 @@ namespace FinanceCoreLedger.BackgroundServices
                 {
                     using (var scope = _serviceProvider.CreateScope())
                     {
-                        var dbContext = scope.ServiceProvider.GetRequiredService<FinanceDbContext>(); 
+                        var dbContext = scope.ServiceProvider.GetRequiredService<FinanceDbContext>();
                         var limitDate = DateTime.UtcNow.AddDays(-30);
 
                         // Executa limpeza de registros de telemetria
                         int deletedRows = await dbContext.Database.ExecuteSqlRawAsync(
-                            "DELETE FROM clicklog WHERE created_at < {0}", 
-                            limitDate, 
+                            "DELETE FROM clicklog WHERE created_at < {0}",
+                            limitDate,
                             stoppingToken
                         );
 

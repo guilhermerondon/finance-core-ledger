@@ -46,7 +46,7 @@ namespace Finance.Tests
             // Arrange
             var userA = "user-A";
             var userB = "user-B";
-            
+
             var transactionsA = new List<Transaction>
             {
                 new Transaction { Id = 1, Description = "Job A", Amount = 100, Type = "Income", UserId = userA }
@@ -67,7 +67,7 @@ namespace Finance.Tests
             // Assert
             resultA.Should().ContainSingle(t => t.UserId == userA);
             resultA.Should().NotContain(t => t.UserId == userB);
-            
+
             resultB.Should().ContainSingle(t => t.UserId == userB);
             resultB.Should().NotContain(t => t.UserId == userA);
         }

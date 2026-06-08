@@ -15,7 +15,8 @@ namespace FinanceAPI.Infrastructure.Data
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
-            builder.Entity<IdentityUser>(entity => {
+            builder.Entity<IdentityUser>(entity =>
+            {
                 entity.Property(e => e.EmailConfirmed).HasColumnType("boolean");
                 entity.Property(e => e.PhoneNumberConfirmed).HasColumnType("boolean");
                 entity.Property(e => e.TwoFactorEnabled).HasColumnType("boolean");

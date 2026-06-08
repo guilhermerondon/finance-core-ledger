@@ -24,8 +24,8 @@ namespace FinanceAPI.Application.Services
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
 
-            var secretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY") 
-                            ?? Environment.GetEnvironmentVariable("JWT_SECRET") 
+            var secretKey = Environment.GetEnvironmentVariable("JWT_SECRET_KEY")
+                            ?? Environment.GetEnvironmentVariable("JWT_SECRET")
                             ?? "ChaveDeSegurancaReservaParaEvitarErros123!";
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey));
