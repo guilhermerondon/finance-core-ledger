@@ -6,8 +6,10 @@ using FinanceAPI.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Distributed;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Text.Json;
 
 namespace FinanceAPI.API.Controllers
 {
@@ -18,11 +20,13 @@ namespace FinanceAPI.API.Controllers
     {
         private readonly TransactionService _service;
         private readonly FinanceDbContext _context;
+        private readonly IDistributedCache _cache;
 
-        public TransactionsController(TransactionService service, FinanceDbContext context)
+        public TransactionsController(TransactionService service, FinanceDbContext context, IDistributedCache cache)
         {
             _service = service;
             _context = context;
+            _cache = cache;
         }
 
         [HttpGet]
@@ -31,7 +35,19 @@ namespace FinanceAPI.API.Controllers
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(JwtRegisteredClaimNames.Sub);
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
+            var cacheKey = $"finance_transactions:{userId}";
+            var cachedData = await _cache.GetStringAsync(cacheKey);
+            if (!string.IsNullOrEmpty(cachedData))
+            {
+                var cachedTransactions = JsonSerializer.Deserialize<IEnumerable<Transaction>>(cachedData);
+                return Ok(cachedTransactions);
+            }
+
             var transactions = await _service.GetUserTransactionsAsync(userId);
+            
+            var cacheOptions = new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10) };
+            await _cache.SetStringAsync(cacheKey, JsonSerializer.Serialize(transactions), cacheOptions);
+
             return Ok(transactions);
         }
 
@@ -41,7 +57,18 @@ namespace FinanceAPI.API.Controllers
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue(JwtRegisteredClaimNames.Sub);
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
+            var cacheKey = $"finance_balance:{userId}";
+            var cachedData = await _cache.GetStringAsync(cacheKey);
+            if (!string.IsNullOrEmpty(cachedData))
+            {
+                return Ok(JsonSerializer.Deserialize<decimal>(cachedData));
+            }
+
             var balance = await _service.CalculateBalanceAsync(userId);
+            
+            var cacheOptions = new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10) };
+            await _cache.SetStringAsync(cacheKey, JsonSerializer.Serialize(balance), cacheOptions);
+
             return Ok(balance);
         }
 
@@ -90,6 +117,10 @@ namespace FinanceAPI.API.Controllers
             };
 
             await _service.AddTransactionAsync(transaction);
+            
+            await _cache.RemoveAsync($"finance_transactions:{userId}");
+            await _cache.RemoveAsync($"finance_balance:{userId}");
+            
             return CreatedAtAction(nameof(GetTransaction), new { id = transaction.Id }, transaction);
         }
 
@@ -124,6 +155,9 @@ namespace FinanceAPI.API.Controllers
 
             await _service.UpdateTransactionAsync(transaction);
 
+            await _cache.RemoveAsync($"finance_transactions:{userId}");
+            await _cache.RemoveAsync($"finance_balance:{userId}");
+
             return NoContent();
         }
 
@@ -149,6 +183,10 @@ namespace FinanceAPI.API.Controllers
             {
                 _context.Transactions.Remove(transaction);
                 await _context.SaveChangesAsync();
+                
+                await _cache.RemoveAsync($"finance_transactions:{userId}");
+                await _cache.RemoveAsync($"finance_balance:{userId}");
+                
                 return NoContent(); // 204 Sucesso sem conteúdo
             }
             catch (Exception ex)

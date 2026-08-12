@@ -31,7 +31,22 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddHealthChecks();
 builder.Services.AddHttpClient();
 
-// --- 3. CONFIGURAÇÃO DE CORS ---
+// --- 3. CONFIGURAÇÃO DE CACHE (REDIS) ---
+var redisConnectionString = builder.Configuration.GetConnectionString("Redis") ?? Environment.GetEnvironmentVariable("ConnectionStrings__Redis");
+if (!string.IsNullOrEmpty(redisConnectionString))
+{
+    builder.Services.AddStackExchangeRedisCache(options =>
+    {
+        options.Configuration = redisConnectionString;
+        options.InstanceName = "Finance_";
+    });
+}
+else
+{
+    builder.Services.AddDistributedMemoryCache(); // Fallback para desenvolvimento local sem Redis
+}
+
+// --- 4. CONFIGURAÇÃO DE CORS ---
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("ProducaoPolicy", policy =>
@@ -56,7 +71,7 @@ builder.Services.AddCors(options =>
     });
 });
 
-// --- 4. BANCO DE DADOS (PostgreSQL Parser para URLs do Supabase/Render) ---
+// --- 5. BANCO DE DADOS (PostgreSQL Parser para URLs do Supabase/Render) ---
 var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
 if (!string.IsNullOrEmpty(databaseUrl))
 {
@@ -82,7 +97,7 @@ else
     builder.Services.AddDbContext<FinanceDbContext>(options => options.UseNpgsql(connectionString));
 }
 
-// --- 5. IDENTITY E SEGURANÇA JWT ---
+// --- 6. IDENTITY E SEGURANÇA JWT ---
 builder.Services.AddIdentity<IdentityUser, IdentityRole>()
     .AddEntityFrameworkStores<FinanceDbContext>()
     .AddDefaultTokenProviders();
@@ -108,7 +123,7 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-// --- 6. INJEÇÃO DE DEPENDÊNCIA ---
+// --- 7. INJEÇÃO DE DEPENDÊNCIA ---
 builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
 builder.Services.AddScoped<TransactionService>();
 builder.Services.AddScoped<RabbitMqPublisher>();
@@ -140,7 +155,7 @@ lifetime.ApplicationStopping.Register(() =>
     app.Logger.LogInformation("Sinal de desligamento recebido. Iniciando Graceful Shutdown: aguardando finalização das transações e fechando conexões...");
 });
 
-// --- 7. SINCRONIZAÇÃO DE BANCO (O ajuste crítico) ---
+// --- 8. SINCRONIZAÇÃO DE BANCO (O ajuste crítico) ---
 using (var scope = app.Services.CreateScope())
 {
     var services = scope.ServiceProvider;
@@ -162,7 +177,7 @@ using (var scope = app.Services.CreateScope())
 
 
 
-// --- 8. PIPELINE DE MIDDLEWARE (Ordem de Execução) ---
+// --- 9. PIPELINE DE MIDDLEWARE (Ordem de Execução) ---
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();

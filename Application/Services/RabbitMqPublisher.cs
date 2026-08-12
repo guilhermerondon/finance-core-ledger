@@ -6,18 +6,19 @@ namespace FinanceAPI.Application.Services
 {
     public class RabbitMqPublisher
     {
-        public void PublishTransactionEvent(object transactionData)
+        public async Task PublishTransactionEventAsync(object transactionData)
         {
-            var factory = new ConnectionFactory { HostName = "localhost", UserName = "rondon_admin", Password = "dev_password123" };
-            using var connection = factory.CreateConnection();
-            using var channel = connection.CreateModel();
+            var hostName = Environment.GetEnvironmentVariable("RABBITMQ_HOST") ?? "localhost";
+            var factory = new ConnectionFactory { HostName = hostName, UserName = "rondon_admin", Password = "dev_password123" };
+            using var connection = await factory.CreateConnectionAsync();
+            using var channel = await connection.CreateChannelAsync();
 
-            channel.QueueDeclare(queue: "finance_events", durable: false, exclusive: false, autoDelete: false, arguments: null);
+            await channel.QueueDeclareAsync(queue: "finance_events", durable: false, exclusive: false, autoDelete: false, arguments: null);
 
             var message = JsonSerializer.Serialize(transactionData);
             var body = Encoding.UTF8.GetBytes(message);
 
-            channel.BasicPublish(exchange: string.Empty, routingKey: "finance_events", basicProperties: null, body: body);
+            await channel.BasicPublishAsync(exchange: string.Empty, routingKey: "finance_events", body: body);
         }
     }
 }

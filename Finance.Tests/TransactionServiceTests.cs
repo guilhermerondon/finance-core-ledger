@@ -15,7 +15,7 @@ namespace Finance.Tests
         public TransactionServiceTests()
         {
             _repositoryMock = new Mock<ITransactionRepository>();
-            _service = new TransactionService(_repositoryMock.Object);
+            _service = new TransactionService(_repositoryMock.Object, null!);
         }
 
         [Fact]

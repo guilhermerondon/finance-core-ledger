@@ -42,7 +42,7 @@ namespace FinanceAPI.Application.Services
         public async Task AddTransactionAsync(Transaction transaction)
         {
             await _repository.AddAsync(transaction);
-            _rabbitMqPublisher.PublishTransactionEvent(transaction);
+            await _rabbitMqPublisher.PublishTransactionEventAsync(transaction);
         }
 
         public async Task UpdateTransactionAsync(Transaction transaction)
