@@ -21,12 +21,14 @@ namespace FinanceAPI.API.Controllers
         private readonly TransactionService _service;
         private readonly FinanceDbContext _context;
         private readonly IDistributedCache _cache;
+        private readonly ILogger<TransactionsController> _logger;
 
-        public TransactionsController(TransactionService service, FinanceDbContext context, IDistributedCache cache)
+        public TransactionsController(TransactionService service, FinanceDbContext context, IDistributedCache cache, ILogger<TransactionsController> logger)
         {
             _service = service;
             _context = context;
             _cache = cache;
+            _logger = logger;
         }
 
         [HttpGet]
@@ -36,17 +38,31 @@ namespace FinanceAPI.API.Controllers
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
             var cacheKey = $"finance_transactions:{userId}";
-            var cachedData = await _cache.GetStringAsync(cacheKey);
-            if (!string.IsNullOrEmpty(cachedData))
+            try
             {
-                var cachedTransactions = JsonSerializer.Deserialize<IEnumerable<Transaction>>(cachedData);
-                return Ok(cachedTransactions);
+                var cachedData = await _cache.GetStringAsync(cacheKey);
+                if (!string.IsNullOrEmpty(cachedData))
+                {
+                    var cachedTransactions = JsonSerializer.Deserialize<IEnumerable<Transaction>>(cachedData);
+                    return Ok(cachedTransactions);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Falha ao ler do Redis. Buscando do banco de dados para a chave {CacheKey}", cacheKey);
             }
 
             var transactions = await _service.GetUserTransactionsAsync(userId);
             
-            var cacheOptions = new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10) };
-            await _cache.SetStringAsync(cacheKey, JsonSerializer.Serialize(transactions), cacheOptions);
+            try
+            {
+                var cacheOptions = new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10) };
+                await _cache.SetStringAsync(cacheKey, JsonSerializer.Serialize(transactions), cacheOptions);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Falha ao salvar no Redis para a chave {CacheKey}", cacheKey);
+            }
 
             return Ok(transactions);
         }
@@ -58,16 +74,30 @@ namespace FinanceAPI.API.Controllers
             if (string.IsNullOrEmpty(userId)) return Unauthorized();
 
             var cacheKey = $"finance_balance:{userId}";
-            var cachedData = await _cache.GetStringAsync(cacheKey);
-            if (!string.IsNullOrEmpty(cachedData))
+            try
             {
-                return Ok(JsonSerializer.Deserialize<decimal>(cachedData));
+                var cachedData = await _cache.GetStringAsync(cacheKey);
+                if (!string.IsNullOrEmpty(cachedData))
+                {
+                    return Ok(JsonSerializer.Deserialize<decimal>(cachedData));
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Falha ao ler do Redis. Buscando do banco de dados para a chave {CacheKey}", cacheKey);
             }
 
             var balance = await _service.CalculateBalanceAsync(userId);
             
-            var cacheOptions = new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10) };
-            await _cache.SetStringAsync(cacheKey, JsonSerializer.Serialize(balance), cacheOptions);
+            try
+            {
+                var cacheOptions = new DistributedCacheEntryOptions { AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10) };
+                await _cache.SetStringAsync(cacheKey, JsonSerializer.Serialize(balance), cacheOptions);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Falha ao salvar no Redis para a chave {CacheKey}", cacheKey);
+            }
 
             return Ok(balance);
         }
@@ -118,8 +148,15 @@ namespace FinanceAPI.API.Controllers
 
             await _service.AddTransactionAsync(transaction);
             
-            await _cache.RemoveAsync($"finance_transactions:{userId}");
-            await _cache.RemoveAsync($"finance_balance:{userId}");
+            try
+            {
+                await _cache.RemoveAsync($"finance_transactions:{userId}");
+                await _cache.RemoveAsync($"finance_balance:{userId}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Falha ao invalidar o Redis para o usuário {UserId}", userId);
+            }
             
             return CreatedAtAction(nameof(GetTransaction), new { id = transaction.Id }, transaction);
         }
@@ -155,8 +192,15 @@ namespace FinanceAPI.API.Controllers
 
             await _service.UpdateTransactionAsync(transaction);
 
-            await _cache.RemoveAsync($"finance_transactions:{userId}");
-            await _cache.RemoveAsync($"finance_balance:{userId}");
+            try
+            {
+                await _cache.RemoveAsync($"finance_transactions:{userId}");
+                await _cache.RemoveAsync($"finance_balance:{userId}");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Falha ao invalidar o Redis para o usuário {UserId}", userId);
+            }
 
             return NoContent();
         }
@@ -184,8 +228,15 @@ namespace FinanceAPI.API.Controllers
                 _context.Transactions.Remove(transaction);
                 await _context.SaveChangesAsync();
                 
-                await _cache.RemoveAsync($"finance_transactions:{userId}");
-                await _cache.RemoveAsync($"finance_balance:{userId}");
+                try
+                {
+                    await _cache.RemoveAsync($"finance_transactions:{userId}");
+                    await _cache.RemoveAsync($"finance_balance:{userId}");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Falha ao invalidar o Redis para o usuário {UserId}", userId);
+                }
                 
                 return NoContent(); // 204 Sucesso sem conteúdo
             }
