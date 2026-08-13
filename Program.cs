@@ -35,6 +35,12 @@ builder.Services.AddHttpClient();
 var redisConnectionString = builder.Configuration.GetConnectionString("Redis") ?? Environment.GetEnvironmentVariable("ConnectionStrings__Redis");
 if (!string.IsNullOrEmpty(redisConnectionString))
 {
+    // Adicionamos abortConnect=false para não falhar a aplicação (Graceful Degradation)
+    if (!redisConnectionString.Contains("abortConnect=false"))
+    {
+        redisConnectionString += ",abortConnect=false";
+    }
+
     builder.Services.AddStackExchangeRedisCache(options =>
     {
         options.Configuration = redisConnectionString;
