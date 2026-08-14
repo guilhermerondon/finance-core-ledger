@@ -57,23 +57,9 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("ProducaoPolicy", policy =>
     {
-        var origins = new List<string>
-        {
-            "https://guilhermerondon.com"
-        };
-
-        if (builder.Environment.IsDevelopment())
-        {
-            origins.Add("http://localhost:4200");
-            origins.Add("http://localhost:3000");
-            origins.Add("http://localhost:5173");
-            // Adicione outras portas localhost conforme necessário para dev
-        }
-
-        policy.WithOrigins(origins.ToArray())
-              .WithMethods("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH")
-              .AllowAnyHeader()
-              .AllowCredentials();
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
     });
 });
 
@@ -191,10 +177,11 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseDeveloperExceptionPage();
-app.UseRouting();
 
-// O CORS deve vir obrigatoriamente antes da Autenticação
+// O CORS deve vir obrigatoriamente antes do Routing e da Autenticação
 app.UseCors("ProducaoPolicy");
+
+app.UseRouting();
 
 app.UseRateLimiter();
 
